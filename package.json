@@ -1,0 +1,36 @@
+{
+  "name": "dao-couchdb",
+  "version": "1.0.0",
+  "description": "An opinionated DAO for partitioned couchdb/cloudant databases",
+  "main": "dao.js",
+  "scripts": {
+    "test": "jest",
+    "test-watch": "jest --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ericlowry/dao-couchdb.git"
+  },
+  "keywords": [
+    "dao",
+    "couchdb",
+    "cloudant"
+  ],
+  "author": "Eric Lowry <eric@myrealms.org>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ericlowry/dao-couchdb/issues"
+  },
+  "homepage": "https://github.com/ericlowry/dao-couchdb#readme",
+  "devDependencies": {
+    "jest": "^26.6.3",
+    "nano": "^9.0.3"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  },
+  "dependencies": {
+    "jsonschema": "^1.4.0",
+    "short-uuid": "^4.1.0"
+  }
+}
