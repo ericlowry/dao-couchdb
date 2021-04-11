@@ -29,7 +29,46 @@ describe('dao', () => {
       expect(e.statusCode).toBe(404);
     }
 
-    await service.db.create(name);
+    await service.db.create(name, { partitioned: true });
+
+    db.insert({
+      _id: '_design/WIDGET',
+      views: {
+        'display-order': {
+          reduce: '_count',
+          map: ({ _id, name, label }) =>
+            _id.split(':')[0] === 'WIDGET' &&
+            name &&
+            emit([name.toUpperCase()], {
+              id: _id.split(':')[1],
+              name,
+              label,
+            }),
+        },
+        'by-name': {
+          reduce: '_count',
+          map: ({ _id, name }) =>
+            _id.split(':')[0] === 'WIDGET' && name && emit([name], 1),
+        },
+        'by-status': {
+          reduce: '_count',
+          map: ({ _id, status }) =>
+            _id.split(':')[0] === 'WIDGET' &&
+            status &&
+            emit([status], 1),
+        },
+      },
+    });
+
+    // insert some known documents...
+    const docs = [
+      { _id: `WIDGET:known-1`, name: 'known-1', label: 'Known 1', status: 'ACTIVE' },
+      { _id: `WIDGET:known-2`, name: 'known-2', label: 'Known 2', status: 'ACTIVE' },
+      { _id: `WIDGET:known-3`, name: 'known-3', label: 'Known 3', status: 'INACTIVE' },
+    ];
+    for (let i = 0; i < docs.length; i++) {
+      await db.insert(DAO.touch(docs[i], 'admin'));
+    }
   });
 
   describe('DAO() - constructor', () => {
@@ -59,6 +98,52 @@ describe('dao', () => {
       expect(uuid1).toMatch(/^WIDGET:[a-zA-Z0-9]{22}$/);
       const uuid2 = dao.uuid();
       expect(uuid2).not.toBe(uuid1);
+    });
+  });
+
+  describe('DAO.touch()', () => {
+    const dao = new DAO('WIDGET', db);
+
+    it('fails without a document', () => {
+      expect(() => DAO.touch()).toThrow('bad document');
+    });
+
+    it('fails with a bad document', () => {
+      expect(() => DAO.touch(123)).toThrow('bad document');
+    });
+
+    it('fails with a bad user', () => {
+      const doc = {};
+      expect(() => DAO.touch(doc)).toThrow('bad user name');
+    });
+
+    it('fails with a invalid user name', () => {
+      const doc = {};
+      expect(() => DAO.touch(doc, '')).toThrow('invalid user name');
+    });
+
+    it('touches an empty document', () => {
+      const doc = {};
+      const touched = DAO.touch(doc, 'test');
+      expect(touched.c_by).toBe('test');
+      expect(typeof touched.c_at).toBe('number');
+      expect(touched.m_by).toBe('test');
+      expect(typeof touched.m_at).toBe('number');
+    });
+
+    it('touches an existing document', () => {
+      const ts = Math.floor(Date.now() / 1000) - 10;
+      const doc = {
+        c_by: 'admin',
+        c_at: ts,
+        m_by: 'admin',
+        m_at: ts,
+      };
+      const touched = DAO.touch(doc, 'test');
+      expect(touched.c_by).toBe('admin');
+      expect(touched.c_at).toBe(ts);
+      expect(touched.m_by).toBe('test');
+      expect(touched.m_at).toBeGreaterThan(ts);
     });
   });
 
@@ -407,6 +492,96 @@ describe('dao', () => {
       const del = await dao.delete(ID, finalDoc);
       expect(del.id).toBe(finalDoc._id);
       expect(del.rev).not.toBe(finalDoc._rev);
+    });
+  });
+
+  describe('dao.list()', () => {
+    const dao = new DAO('WIDGET', db);
+
+    it('fails without a view name', () => {
+      expect.assertions(1);
+      return dao.list().catch(err => expect(err.message).toBe('invalid view'));
+    });
+
+    it('fails without bad view name', () => {
+      expect.assertions(1);
+      return dao
+        .list(123)
+        .catch(err => expect(err.message).toBe('invalid view'));
+    });
+
+    it('fails without bad opts', () => {
+      expect.assertions(1);
+      return dao
+        .list('by-name', 123)
+        .catch(err => expect(err.message).toBe('invalid options'));
+    });
+
+    it('by default, returns an array of documents', async () => {
+      const res = await dao.list('display-order');
+      expect(res.length).toBe(3);
+      expect(res[0]._rev).toBeTruthy();
+    });
+
+    it('returns an array of key values when !opts.include_docs', async () => {
+      const res = await dao.list('display-order', { include_docs: false });
+      expect(res.length).toBe(3);
+      expect(res[0]._id).not.toBeTruthy();
+      expect(res[0]._rev).not.toBeTruthy();
+      expect(res[0].id).toBe('known-1');
+    });
+
+    it('limits the number of documents returned', async () => {
+      const res = await dao.list('display-order', { limit: 2 });
+      expect(res.length).toBe(2);
+      expect(res[0]._rev).toBeTruthy();
+    });
+
+    it('skips documents', async () => {
+      const res = await dao.list('display-order', { skip: 1 });
+      expect(res.length).toBe(2);
+      expect(res[0]._id).toBe(`WIDGET:known-2`);
+    });
+  });
+
+  describe('dao.findOne()', () => {
+    const dao = new DAO('WIDGET', db);
+
+    it('fails without a view name', () => {
+      expect.assertions(1);
+      return dao
+        .findOne()
+        .catch(err => expect(err.message).toBe('invalid view'));
+    });
+
+    it('fails without bad view name', () => {
+      expect.assertions(1);
+      return dao
+        .findOne(123)
+        .catch(err => expect(err.message).toBe('invalid view'));
+    });
+
+    it('fails without key', () => {
+      expect.assertions(1);
+      return dao
+        .findOne('by-name')
+        .catch(err => expect(err.message).toBe('invalid key'));
+    });
+
+    it('finds an existing document', async () => {
+      const doc = await dao.findOne('by-name', 'known-1');
+      expect(doc._id).toBe('WIDGET:known-1');
+      expect(doc._rev).toBeTruthy();
+    });
+
+    it('returns null when a key is not found', async () => {
+      const doc = await dao.findOne('by-name', 'no-widget-by-this-name');
+      expect(doc).toBe(null);
+    });
+
+    it('fail when a key is not unique', () => {
+      expect.assertions(1);
+      return dao.findOne('by-status', 'ACTIVE').catch( err => expect(err.message).toBe('key is not unique'));
     });
   });
 

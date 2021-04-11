@@ -77,7 +77,7 @@ class DAO {
     assert(vr.valid, 'invalid document');
     assert(doc._id === `${this.type}:${id}`, 'document id mismatch');
     assert(doc._rev, 'document must already exist');
-    return this.db.insert(doc).then( res => ({ ...doc, _rev: res.rev }));
+    return this.db.insert(doc).then(res => ({ ...doc, _rev: res.rev }));
   }
 
   async delete(id, doc) {
@@ -89,11 +89,58 @@ class DAO {
     return this.db.destroy(doc._id, doc._rev);
   }
 
-  async list(viewName, opts = {}) {}
+  async list(viewName, opts = {}) {
+    assert(typeof viewName === 'string' && viewName, 'invalid view');
+    assert(typeof opts === 'object', 'invalid options');
+    opts = {
+      reduce: false,
+      include_docs: true,
+      ...opts,
+    };
+    const res = await this.db.partitionedView(this.type, this.type, viewName, opts);
+    return res.rows.map(row => (opts.include_docs ? row.doc : row.value));
+  }
 
-  async findOne(viewName, ...keys) {}
+  async findOne(viewName, ...key) {
+    assert(typeof viewName === 'string' && viewName, 'invalid view');
+    assert(Array.isArray(key) && key.length > 0, 'invalid key');
+    const res = await this.db.partitionedView(this.type, this.type, viewName, {
+      reduce: false,
+      include_docs: true,
+      limit: 2,
+      key,
+    });
+    assert(res.rows.length <= 1, 'key is not unique');
+    return res.rows.length ? res.rows[0].doc : null;
+  }
 
-  async exists(viewName, ...keys) {}
+  async exists(viewName, ...key) {
+    assert(typeof viewName === 'string' && viewName, 'invalid view');
+    assert(Array.isArray(key) && key.length > 0, 'invalid key');
+    const res = await this.db.partitionedView(this.type, this.type, viewName, {
+      reduce: false,
+      include_docs: false,
+      limit: 1,
+      key,
+    });
+    return !!res.rows.length;
+  }
+
+  // static functions /////////////////////////////////////////////////////////
+
+  static touch(doc, userName) {
+    assert(typeof doc === 'object', 'bad document');
+    assert(typeof userName === 'string', 'bad user name');
+    assert(userName, 'invalid user name');
+    if (typeof doc.c_by === 'undefined') {
+      doc.c_by = userName;
+      doc.c_at = Math.floor(Date.now() / 1000);
+    }
+    doc.m_by = userName;
+    doc.m_at = Math.floor(Date.now() / 1000);
+    return doc;
+  }
+
 }
 
 module.exports = DAO;
