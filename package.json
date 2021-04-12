@@ -1,11 +1,11 @@
 {
   "name": "dao-couchdb",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "An opinionated DAO for partitioned couchdb/cloudant databases",
   "main": "dao.js",
   "scripts": {
-    "test": "jest",
-    "test-watch": "jest --watch"
+    "test": "bin/dao-test-db && COUCHDB=http://admin:admin@localhost:6984/test-db jest",
+    "test-watch": "bin/dao-test-db && COUCHDB=http://admin:admin@localhost:6984/test-db jest --watch"
   },
   "repository": {
     "type": "git",

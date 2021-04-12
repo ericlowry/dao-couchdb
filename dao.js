@@ -66,7 +66,14 @@ class DAO {
   async retrieve(id) {
     assert(typeof id === 'string' && id, 'bad document id');
     const _id = `${this.type}:${id}`;
-    return this.db.get(_id);
+    try {
+      const doc = await this.db.get(_id);
+      return doc;
+    } catch (err) {
+      //console.log(err);
+      if (err.statusCode !== 404) throw err; // unexpected error
+      return null;
+    }
   }
 
   async update(id, doc) {

@@ -326,6 +326,11 @@ describe('dao', () => {
       expect(testDoc._rev).toBe(res.rev);
       expect(testDoc.test).toBe('test-value');
     });
+
+    it('returns null if a document does not exist', async () => {
+      const doc = await dao.retrieve('does-not-exist');
+      expect(doc).toBe(null);
+    });
   });
 
   describe('dao.update()', () => {
