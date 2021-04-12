@@ -92,34 +92,34 @@ describe('dao', () => {
       },
     ];
     for (let i = 0; i < docs.length; i++) {
-      await db.insert(DAO.touch(docs[i], 'admin'));
+      await db.insert(DAO._touch(docs[i], 'admin'));
     }
   });
 
-  describe('DAO.touch()', () => {
+  describe('dao.touch()', () => {
     const dao = new DAO('WIDGET', db);
 
     it('fails without a document', () => {
-      expect(() => DAO.touch()).toThrow('bad document');
+      expect(() => dao.touch()).toThrow('bad document');
     });
 
     it('fails with a bad document', () => {
-      expect(() => DAO.touch(123)).toThrow('bad document');
+      expect(() => dao.touch(123)).toThrow('bad document');
     });
 
     it('fails with a bad user', () => {
       const doc = {};
-      expect(() => DAO.touch(doc)).toThrow('bad user name');
+      expect(() => dao.touch(doc)).toThrow('bad user name');
     });
 
     it('fails with a invalid user name', () => {
       const doc = {};
-      expect(() => DAO.touch(doc, '')).toThrow('invalid user name');
+      expect(() => dao.touch(doc, '')).toThrow('invalid user name');
     });
 
     it('touches an empty document', () => {
       const doc = {};
-      const touched = DAO.touch(doc, 'test');
+      const touched = dao.touch(doc, 'test');
       expect(touched.c_by).toBe('test');
       expect(typeof touched.c_at).toBe('number');
       expect(touched.m_by).toBe('test');
@@ -134,7 +134,7 @@ describe('dao', () => {
         m_by: 'admin',
         m_at: ts,
       };
-      const touched = DAO.touch(doc, 'test');
+      const touched = dao.touch(doc, 'test');
       expect(touched.c_by).toBe('admin');
       expect(touched.c_at).toBe(ts);
       expect(touched.m_by).toBe('test');

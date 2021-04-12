@@ -163,9 +163,7 @@ class DAO {
     ];
   }
 
-  // static functions /////////////////////////////////////////////////////////
-
-  static touch(doc, userName) {
+  static _touch(doc, userName) {
     assert(typeof doc === 'object', 'bad document');
     assert(typeof userName === 'string', 'bad user name');
     assert(userName, 'invalid user name');
@@ -177,6 +175,11 @@ class DAO {
     doc.m_at = Math.floor(Date.now() / 1000);
     return doc;
   }
+
+  touch(doc, userName) {
+    return this.constructor._touch(doc,userName);
+  }
+
 }
 
 module.exports = DAO;

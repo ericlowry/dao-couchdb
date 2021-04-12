@@ -1,6 +1,6 @@
 {
   "name": "dao-couchdb",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "An opinionated DAO for partitioned couchdb/cloudant databases",
   "main": "dao.js",
   "scripts": {
