@@ -693,12 +693,75 @@ describe('dao', () => {
     });
 
     it('return 0 when a compound key keys is not found in a view', async () => {
-      const hits = await dao.count(
-        'by-status',
-        'ACTIVE',
-        'UNKNOWN-LEVEL-KEY'
-      );
+      const hits = await dao.count('by-status', 'ACTIVE', 'UNKNOWN-LEVEL-KEY');
       expect(hits).toBe(0);
+    });
+  });
+
+  describe('dao.info()', () => {
+    const dao = new DAO('WIDGET', db);
+
+    it('fails without a document', () => {
+      expect(() => dao.info()).toThrow('bad document');
+    });
+
+    it('fails with bad document type', () => {
+      expect(() => dao.info(123)).toThrow('bad document');
+    });
+
+    it('fails with an empty document', () => {
+      expect(() => dao.info({})).toThrow('invalid document');
+    });
+
+    it('detects a document type mismatch', () => {
+      expect(() => {
+        const doc = {
+          _id: 'NOT-WIDGET:test-1',
+          _rev: '1-123456789',
+          c_by: 'admin',
+          c_at: Math.floor(Date.now() / 1000),
+          m_by: 'admin',
+          m_at: Math.floor(Date.now() / 1000),
+        };
+        return dao.info(doc);
+      }).toThrow('document type mismatch');
+    });
+
+    it('detects a missing _rev', () => {
+      expect(()=>{
+        const doc = {
+          _id: 'WIDGET:test-1',
+          c_by: 'admin',
+          c_at: Math.floor(Date.now() / 1000),
+          m_by: 'admin',
+          m_at: Math.floor(Date.now() / 1000),
+          test: 'initial-value',
+        };
+        return dao
+          .info(doc);
+      }).toThrow('document must already exist');
+    });
+
+    it('returns info for document', async () => {
+      const ID = `test-info-1`;
+      const _ID = `WIDGET:${ID}`;
+      const TS = Math.floor(Date.now() / 1000);
+      const doc = {
+        _id: _ID,
+        _rev: '9-12345678',
+        c_by: 'admin',
+        c_at: TS - 10,
+        m_by: 'user',
+        m_at: TS,
+        test: 'initial-value',
+      };
+      const [id, rev, cby, cat, mby, mat] = dao.info(doc);
+      expect(id).toBe(ID);
+      expect(rev).toBe('9-12345678');
+      expect(cby).toBe('admin');
+      expect(cat).toBe(TS - 10);
+      expect(mby).toBe('user');
+      expect(mat).toBe(TS);
     });
   });
 

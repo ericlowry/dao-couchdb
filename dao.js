@@ -147,6 +147,22 @@ class DAO {
     return res.rows.length ? res.rows[0].value : 0;
   }
 
+  info(doc) {
+    assert(typeof doc === 'object', 'bad document');
+    assert(typeof doc._id === 'string' && doc._id, 'invalid document');
+    assert(doc._rev, 'document must already exist');
+    const [ type, id ] = doc._id.split(/:(.+)/);
+    assert(type === this.type, 'document type mismatch');
+    return [
+      id,
+      doc._rev,
+      doc.c_by,
+      doc.c_at,
+      doc.m_by,
+      doc.m_at,
+    ];
+  }
+
   // static functions /////////////////////////////////////////////////////////
 
   static touch(doc, userName) {
