@@ -636,7 +636,7 @@ describe('dao', () => {
         .catch(err => expect(err.message).toBe('invalid key'));
     });
 
-    it('returns true forn an existing key', async () => {
+    it('returns true for an existing key', async () => {
       const found = await dao.exists('by-name', 'known-1');
       expect(found).toBe(true);
     });
