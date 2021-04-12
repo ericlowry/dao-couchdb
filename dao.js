@@ -97,7 +97,12 @@ class DAO {
       include_docs: true,
       ...opts,
     };
-    const res = await this.db.partitionedView(this.type, this.type, viewName, opts);
+    const res = await this.db.partitionedView(
+      this.type,
+      this.type,
+      viewName,
+      opts
+    );
     return res.rows.map(row => (opts.include_docs ? row.doc : row.value));
   }
 
@@ -126,6 +131,17 @@ class DAO {
     return !!res.rows.length;
   }
 
+  async count(viewName, ...key) {
+    assert(typeof viewName === 'string' && viewName, 'invalid view');
+    assert(Array.isArray(key), 'invalid key');
+    const res = await this.db.partitionedView(this.type, this.type, viewName, {
+      reduce: true,
+      key: key.length ? key : undefined,
+    });
+    assert(Array.isArray(res.rows));
+    return res.rows.length ? res.rows[0].value : 0;
+  }
+
   // static functions /////////////////////////////////////////////////////////
 
   static touch(doc, userName) {
@@ -140,7 +156,6 @@ class DAO {
     doc.m_at = Math.floor(Date.now() / 1000);
     return doc;
   }
-
 }
 
 module.exports = DAO;

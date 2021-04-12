@@ -1,7 +1,10 @@
 const DAO = require('./dao.js');
 const nano = require('nano');
-const { COUCHDB } = process.env;
+
+const COUCHDB = `${process.env.COUCHDB}-${Math.floor(Date.now() / 1000)}`;
+
 const db = nano(COUCHDB);
+
 const { generate: _uuid } = require('short-uuid');
 
 const serviceUrl = url => {
@@ -21,13 +24,6 @@ describe('dao', () => {
     const service = nano(serviceUrl(COUCHDB));
     const name = dbName(COUCHDB);
     expect(name).toMatch(/[a-z][a-z0-9_-]*/);
-
-    // delete the existing database (if any)
-    try {
-      await service.db.destroy(name);
-    } catch (e) {
-      expect(e.statusCode).toBe(404);
-    }
 
     await service.db.create(name, { partitioned: true });
 
@@ -53,52 +49,51 @@ describe('dao', () => {
         'by-status': {
           reduce: '_count',
           map: ({ _id, status }) =>
+            _id.split(':')[0] === 'WIDGET' && status && emit([status], 1),
+        },
+        'by-type': {
+          reduce: '_count',
+          map: ({ _id, type }) =>
+            _id.split(':')[0] === 'WIDGET' && type && emit([type], 1),
+        },
+        'by-type-status': {
+          reduce: '_count',
+          map: ({ _id, type, status }) =>
             _id.split(':')[0] === 'WIDGET' &&
+            type &&
             status &&
-            emit([status], 1),
+            emit([type, status], 1),
         },
       },
     });
 
     // insert some known documents...
     const docs = [
-      { _id: `WIDGET:known-1`, name: 'known-1', label: 'Known 1', status: 'ACTIVE' },
-      { _id: `WIDGET:known-2`, name: 'known-2', label: 'Known 2', status: 'ACTIVE' },
-      { _id: `WIDGET:known-3`, name: 'known-3', label: 'Known 3', status: 'INACTIVE' },
+      {
+        _id: `WIDGET:known-1`,
+        name: 'known-1',
+        label: 'Known 1',
+        type: 'T1',
+        status: 'ACTIVE',
+      },
+      {
+        _id: `WIDGET:known-2`,
+        name: 'known-2',
+        label: 'Known 2',
+        type: 'T2',
+        status: 'ACTIVE',
+      },
+      {
+        _id: `WIDGET:known-3`,
+        name: 'known-3',
+        label: 'Known 3',
+        type: 'T1',
+        status: 'INACTIVE',
+      },
     ];
     for (let i = 0; i < docs.length; i++) {
       await db.insert(DAO.touch(docs[i], 'admin'));
     }
-  });
-
-  describe('DAO() - constructor', () => {
-    it('fails without a type', async () => {
-      expect(() => new DAO()).toThrow('bad dao type name');
-    });
-
-    it('fails without a db', async () => {
-      expect(() => new DAO('WIDGET')).toThrow('bad db type');
-    });
-
-    it('fails without a couchdb db', async () => {
-      expect(() => new DAO('WIDGET', {})).toThrow('bad db instance');
-    });
-
-    it('constructs a dao', async () => {
-      const dao = new DAO('WIDGET', db);
-      expect(dao.type === 'WIDGET');
-    });
-  });
-
-  describe('dao.uuid()', () => {
-    const dao = new DAO('WIDGET', db);
-
-    it('generates unique uuids', async () => {
-      const uuid1 = dao.uuid();
-      expect(uuid1).toMatch(/^WIDGET:[a-zA-Z0-9]{22}$/);
-      const uuid2 = dao.uuid();
-      expect(uuid2).not.toBe(uuid1);
-    });
   });
 
   describe('DAO.touch()', () => {
@@ -144,6 +139,36 @@ describe('dao', () => {
       expect(touched.c_at).toBe(ts);
       expect(touched.m_by).toBe('test');
       expect(touched.m_at).toBeGreaterThan(ts);
+    });
+  });
+
+  describe('DAO() - constructor', () => {
+    it('fails without a type', async () => {
+      expect(() => new DAO()).toThrow('bad dao type name');
+    });
+
+    it('fails without a db', async () => {
+      expect(() => new DAO('WIDGET')).toThrow('bad db type');
+    });
+
+    it('fails without a couchdb db', async () => {
+      expect(() => new DAO('WIDGET', {})).toThrow('bad db instance');
+    });
+
+    it('constructs a dao', async () => {
+      const dao = new DAO('WIDGET', db);
+      expect(dao.type === 'WIDGET');
+    });
+  });
+
+  describe('dao.uuid()', () => {
+    const dao = new DAO('WIDGET', db);
+
+    it('generates unique uuids', async () => {
+      const uuid1 = dao.uuid();
+      expect(uuid1).toMatch(/^WIDGET:[a-zA-Z0-9]{22}$/);
+      const uuid2 = dao.uuid();
+      expect(uuid2).not.toBe(uuid1);
     });
   });
 
@@ -554,7 +579,7 @@ describe('dao', () => {
         .catch(err => expect(err.message).toBe('invalid view'));
     });
 
-    it('fails without bad view name', () => {
+    it('fails with a bad view name', () => {
       expect.assertions(1);
       return dao
         .findOne(123)
@@ -581,7 +606,94 @@ describe('dao', () => {
 
     it('fail when a key is not unique', () => {
       expect.assertions(1);
-      return dao.findOne('by-status', 'ACTIVE').catch( err => expect(err.message).toBe('key is not unique'));
+      return dao
+        .findOne('by-status', 'ACTIVE')
+        .catch(err => expect(err.message).toBe('key is not unique'));
+    });
+  });
+
+  describe('dao.exists()', () => {
+    const dao = new DAO('WIDGET', db);
+
+    it('fails without a view name', () => {
+      expect.assertions(1);
+      return dao
+        .exists()
+        .catch(err => expect(err.message).toBe('invalid view'));
+    });
+
+    it('fails with bad view name', () => {
+      expect.assertions(1);
+      return dao
+        .exists(123)
+        .catch(err => expect(err.message).toBe('invalid view'));
+    });
+
+    it('fails without key', () => {
+      expect.assertions(1);
+      return dao
+        .exists('by-name')
+        .catch(err => expect(err.message).toBe('invalid key'));
+    });
+
+    it('returns true forn an existing key', async () => {
+      const found = await dao.exists('by-name', 'known-1');
+      expect(found).toBe(true);
+    });
+
+    it('returns false when a key is not found', async () => {
+      const found = await dao.exists('by-name', 'no-widget-by-this-name');
+      expect(found).toBe(false);
+    });
+
+    it('returns true even if the key is not unique', async () => {
+      const found = await dao.exists('by-status', 'ACTIVE');
+      expect(found).toBe(true);
+    });
+  });
+
+  describe('dao.count()', () => {
+    const dao = new DAO('WIDGET', db);
+
+    it('fails without a view name', () => {
+      expect.assertions(1);
+      return dao.count().catch(err => expect(err.message).toBe('invalid view'));
+    });
+
+    it('fails with bad view name', () => {
+      expect.assertions(1);
+      return dao
+        .count(123)
+        .catch(err => expect(err.message).toBe('invalid view'));
+    });
+
+    it('counts all keys in a view', async () => {
+      const hits = await dao.count('by-name');
+      expect(hits).toBe(3);
+    });
+
+    it('counts matching keys in a view', async () => {
+      const hits = await dao.count('by-status', 'ACTIVE');
+      expect(hits).toBe(2);
+    });
+
+    it('counts matching compound keys in a view', async () => {
+      const hits = await dao.count('by-type-status', 'T1', 'ACTIVE');
+      expect(hits).toBe(1);
+    });
+
+    it('return 0 when a matching key is not found in a view', async () => {
+      const hits = await dao.count('by-status', 'UNKNOWN-STATUS');
+      expect(hits).toBe(0);
+    });
+
+    it('return 0 when a compound key keys is not found in a view', async () => {
+      const hits = await dao.count(
+        'by-status',
+        'ACTIVE',
+        'UNKNOWN-LEVEL-KEY'
+      );
+      expect(hits).toBe(0);
     });
   });
 

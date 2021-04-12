@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+COUCHDB_USER=$1
+if [[ -z "${COUCHDB_USER}" ]]; then
+    echo "usage: dao-test-db adminUser adminPassword"
+    exit 1
+fi
+COUCHDB_PASSWORD=$2
+if [[ -z "${COUCHDB_PASSWORD}" ]]; then
+    echo "usage: dao-test-db adminUser admminPassword"
+    exit 1
+fi
+
+docker kill dao-test-db
+
+docker run -it                              \
+    --rm                                    \
+    -e COUCHDB_USER=${COUCHDB_USER}         \
+    -e COUCHDB_PASSWORD=${COUCHDB_PASSWORD} \
+    --detach                                \
+    --name dao-test-db                      \
+    --publish 5984:5984                     \
+    couchdb:3.1
+
+# give db a chance to come up
+sleep 2
+
+# set the cluster mode
+curl http://localhost:5984/_cluster_setup \
+  --silent \
+  --user ${COUCHDB_USER}:${COUCHDB_PASSWORD} \
+  -H 'Content-Type: application/json' \
+    --data-binary @- << EOF
+{
+  "action":"enable_single_node",
+  "singlenode":true,
+  "bind_address":"0.0.0.0",
+  "username":"${COUCHDB_USER}",
+  "password":"${COUCHDB_PASSWORD}"
+}
+EOF
+
+# set cluster n = 1
+curl -X PUT \
+  http://localhost:5984/_node/_local/_config/cluster/n -d '"1"' \
+  --user ${COUCHDB_USER}:${COUCHDB_PASSWORD}
+
+# Timeout after 8 hours
+curl -X PUT \
+  http://localhost:5984/_node/_local/_config/couch_httpd_auth/timeout -d '"28800"' \
+  --user ${COUCHDB_USER}:${COUCHDB_PASSWORD}

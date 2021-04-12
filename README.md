@@ -25,6 +25,8 @@ dao.findOne(viewName, ...key); // find a unique document from a view.
 
 dao.exists(viewName, ...key); // returns true/false if a key exists in a view.
 
+dao.count(viewName, ...key); // count the number of matching keys that exist in a view.
+
 // Misc functions
 
 dao.uuid(); // generate a unique _id in the form `${type}:22-random-chars`
@@ -37,3 +39,12 @@ DAO.touch(doc, userName); // update a document's c_by, c_at, m_by and m_at field
 ```
 
 ## example implementation
+
+## Testing
+
+Tests require a couchdb/cloudant instance, a simple shell file to deploy a local db via docker has bin included.
+
+```bash
+COUCHDB_USER=admin COUCHDB_PASSWORD=password bin/dao-test-db
+COUCHDB='http://admin:password@localhost:5984/test-db' npm run test-watch
+```
