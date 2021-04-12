@@ -2,7 +2,6 @@
 // dao.js - DAO base class
 //
 const assert = require('assert');
-const _debug_ = require('debug');
 const { generate: _uuid } = require('short-uuid');
 const Validator = require('jsonschema').Validator;
 
@@ -10,13 +9,12 @@ class DAO {
   //
   // constructor
   //
-  constructor(type, db, debugPrefix = 'dao') {
+  constructor(type, db) {
     assert(typeof type === 'string', 'bad dao type name');
     assert(typeof db === 'object', 'bad db type');
     assert(typeof db.replicate === 'function', 'bad db instance');
     this.type = type;
     this.db = db;
-    this.debug = _debug_(`${debugPrefix}:${type}`);
 
     this.docValidator = new Validator();
 
