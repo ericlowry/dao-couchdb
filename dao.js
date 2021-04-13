@@ -180,6 +180,10 @@ class DAO {
     return this.constructor._touch(doc,userName);
   }
 
+  cleanse(ctx,doc) {
+    return doc; // by default, don't do anything
+  }
+
 }
 
 module.exports = DAO;

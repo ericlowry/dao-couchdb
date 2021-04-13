@@ -37,9 +37,15 @@ const [id, rev, createdBy, createdAt, modifiedBy, modifiedAt] = dao.info(doc); /
 const res = dao.validate(doc); // validate a document
 if (!res.valid) console.error(res.errors);
 
+const cleanDoc = dao.cleanse(ctx,dirtyDoc); // cleans a document for use by ctx
+
+const doc = dao.touch(doc, userName); // calls DAO._touch(doc,userName) - see below
+
+
+
 // Static functions
 
-DAO.touch(doc, userName); // update a document's c_by, c_at, m_by and m_at fields
+DAO._touch(doc, userName); // update a document's c_by, c_at, m_by and m_at fields
 ```
 
 ## example implementation

@@ -765,5 +765,34 @@ describe('dao', () => {
     });
   });
 
+  describe('dao.cleanse()', () => {
+    const dao = new DAO('WIDGET', db);
+
+    it('passes a document through', () => {
+      const ctx = { id: 'admin', roles: ['ADMIN'] };
+      const ID = `test-info-1`;
+      const _ID = `WIDGET:${ID}`;
+      const TS = Math.floor(Date.now() / 1000);
+      const doc = {
+        _id: _ID,
+        _rev: '9-12345678',
+        c_by: 'admin',
+        c_at: TS - 10,
+        m_by: 'user',
+        m_at: TS,
+        test: 'initial-value',
+      };
+      const { _id, _rev, c_by, c_at, m_by, m_at, test } = dao.cleanse(ctx,doc);
+      expect(_id).toBe(_ID);
+      expect(_rev).toBe('9-12345678');
+      expect(c_by).toBe('admin');
+      expect(c_at).toBe(TS - 10);
+      expect(m_by).toBe('user');
+      expect(m_at).toBe(TS);
+      expect(test).toBe('initial-value');
+    });
+
+  });
+
   // end of tests...
 });
